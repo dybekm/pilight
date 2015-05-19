@@ -34,7 +34,9 @@
 #include "hummingboard.h"
 #include "raspberrypi.h"
 #include "bananapi.h"
-#include "mem.h"
+#include "radxa.h"
+#include "ci20.h"
+#include "odroid.h"
 
 static struct platform_t *platform = NULL;
 static int setup = -2;
@@ -80,7 +82,7 @@ void delayMicroseconds(unsigned int howLong) {
 }
 
 void platform_register(struct platform_t **dev, const char *name) {
-	*dev = MALLOC(sizeof(struct platform_t));
+	*dev = malloc(sizeof(struct platform_t));
 	(*dev)->name = NULL;
 	(*dev)->pinMode = NULL;
 	(*dev)->digitalWrite = NULL;
@@ -94,8 +96,10 @@ void platform_register(struct platform_t **dev, const char *name) {
 	(*dev)->I2CWrite = NULL;
 	(*dev)->I2CWriteReg8 = NULL;
 	(*dev)->I2CWriteReg16 = NULL;
+	(*dev)->SPIGetFd = NULL;
+	(*dev)->SPIDataRW = NULL;
 
-	if(!((*dev)->name = MALLOC(strlen(name)+1))) {
+	if(!((*dev)->name = malloc(strlen(name)+1))) {
 		wiringXLog(LOG_ERR, "out of memory");
 		exit(0);
 	}
@@ -113,12 +117,12 @@ int wiringXGC(void) {
 	struct platform_t *tmp = platforms;
 	while(platforms) {
 		tmp = platforms;
-		FREE(platforms->name);
+		free(platforms->name);
 		platforms = platforms->next;
-		FREE(tmp);
+		free(tmp);
 	}
 	if(platforms != NULL) {
-		FREE(platforms);
+		free(platforms);
 	}
 
 	wiringXLog(LOG_DEBUG, "garbage collected wiringX library");
@@ -333,6 +337,60 @@ int wiringXI2CSetup(int devId) {
 	return -1;
 }
 
+int wiringXSPIGetFd(int channel) {
+	if(platform != NULL) {
+		if(platform->SPIGetFd) {
+			int x = platform->SPIGetFd(channel);
+			if(x == -1) {
+				wiringXLog(LOG_ERR, "%s: error while calling SPIGetFd", platform->name);
+				wiringXGC();
+			} else {
+				return x;
+			}
+		} else {
+			wiringXLog(LOG_ERR, "%s: platform doesn't support SPIGetFd", platform->name);
+			wiringXGC();
+		}
+	}
+	return -1;
+}
+
+int wiringXSPIDataRW(int channel, unsigned char *data, int len) {
+	if(platform != NULL) {
+		if(platform->SPIDataRW) {
+			int x = platform->SPIDataRW(channel, data, len);
+			if(x == -1) {
+				wiringXLog(LOG_ERR, "%s: error while calling SPIDataRW", platform->name);
+				wiringXGC();
+			} else {
+				return x;
+			}
+		} else {
+			wiringXLog(LOG_ERR, "%s: platform doesn't support SPIDataRW", platform->name);
+			wiringXGC();
+		}
+	}
+	return -1;
+}
+
+int wiringXSPISetup(int channel, int speed) {
+	if(platform != NULL) {
+		if(platform->SPISetup) {
+			int x = platform->SPISetup(channel, speed);
+			if(x == -1) {
+				wiringXLog(LOG_ERR, "%s: error while calling SPISetup", platform->name);
+				wiringXGC();
+			} else {
+				return x;
+			}
+		} else {
+			wiringXLog(LOG_ERR, "%s: platform doesn't support SPISetup", platform->name);
+			wiringXGC();
+		}
+	}
+	return -1;
+}
+
 char *wiringXPlatform(void) {
 	return platform->name;
 }
@@ -353,11 +411,14 @@ int wiringXSetup(void) {
 	if(wiringXLog == NULL) {
 		wiringXLog = _fprintf;
 	}
-#ifdef __arm__
+
+#if defined(__arm__) || defined(__mips__)
 	if(setup == -2) {
 		hummingboardInit();
 		raspberrypiInit();
 		bananapiInit();
+		ci20Init();
+		odroidInit();
 
 		int match = 0;
 		struct platform_t *tmp = platforms;

@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
+#include <linux/spi/spidev.h>
 
 #include "wiringX.h"
 #ifndef __FreeBSD__
@@ -716,7 +717,7 @@ static int raspberrypiWaitForInterrupt(int pin, int ms) {
 	struct pollfd polls;
 
 	if(raspberrypiValidGPIO(pin) != 0) {
-		wiringXLog(LOG_ERR, "raspberrypi->waitForInterrupt: Invalid pin number %d (0 >= pin <= 31)", pin);
+		wiringXLog(LOG_ERR, "raspberrypi->waitForInterrupt: Invalid pin number %d", pin);
 		return -1;
 	}
 
