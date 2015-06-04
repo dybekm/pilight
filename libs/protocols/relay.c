@@ -38,6 +38,7 @@ static char *relay_state = NULL;
 static void relayCreateMessage(int gpio, int state) {
 	relay->message = json_mkobject();
 	json_append_member(relay->message, "gpio", json_mknumber(gpio, 0));
+	json_append_member(relay->message, "slave", json_mknumber(gpio, 0));
 	if(state == 1)
 		json_append_member(relay->message, "state", json_mkstring("on"));
 	else
@@ -46,6 +47,7 @@ static void relayCreateMessage(int gpio, int state) {
 
 static int relayCreateCode(JsonNode *code) {
 	int gpio = -1;
+	int slave = -1;
 	int state = -1;
 	double itmp = -1;
 	char *def = NULL;
@@ -64,6 +66,9 @@ static int relayCreateCode(JsonNode *code) {
 
 	if(json_find_number(code, "gpio", &itmp) == 0)
 		gpio = (int)round(itmp);
+	if(json_find_number(code, "slave", &itmp) == 0)
+		slave = (int)round(itmp);
+
 	if(json_find_number(code, "off", &itmp) == 0)
 		state=0;
 	else if(json_find_number(code, "on", &itmp) == 0)
@@ -84,17 +89,22 @@ static int relayCreateCode(JsonNode *code) {
 		} else {
 			if(strstr(progname, "daemon") != NULL) {
 				pinMode(gpio, OUTPUT);
+				pinMode(slave, OUTPUT);
 				if(strcmp(def, "off") == 0) {
 					if(state == 1) {
 						digitalWrite(gpio, LOW);
+						digitalWrite(slave, LOW);
 					} else if(state == 0) {
 						digitalWrite(gpio, HIGH);
+						digitalWrite(slave, HIGH);
 					}
 				} else {
 					if(state == 0) {
 						digitalWrite(gpio, LOW);
+						digitalWrite(slave, LOW);
 					} else if(state == 1) {
 						digitalWrite(gpio, HIGH);
+						digitalWrite(slave, HIGH);
 					}
 				}
 			} else {
@@ -159,6 +169,7 @@ void relayInit(void) {
 	options_add(&relay->options, 't', "on", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
 	options_add(&relay->options, 'f', "off", OPTION_NO_VALUE, DEVICES_STATE, JSON_STRING, NULL, NULL);
 	options_add(&relay->options, 'g', "gpio", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, "[0-9]");
+	options_add(&relay->options, 's', "slave", OPTION_HAS_VALUE, DEVICES_ID, JSON_NUMBER, NULL, "[0-9]");
 
 	relay_state = MALLOC(4);
 	strcpy(relay_state, "off");
