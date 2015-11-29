@@ -33,6 +33,7 @@
 #include "raspberrypi.h"
 #include "bananapi.h"
 #include "ci20.h"
+#include "odroid.h"
 
 #ifdef _WIN32
 #define timeradd(a, b, result) \
@@ -464,6 +465,7 @@ int wiringXSetup(void) {
 			raspberrypiInit();
 			bananapiInit();
 			ci20Init();
+			odroidInit();
 
 			int match = 0;
 			struct platform_t *tmp = platforms;
